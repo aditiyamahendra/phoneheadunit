@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>CarDeck</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; height: 100%; overflow: hidden; color: #f5f5f7;
+            background: radial-gradient(ellipse at 0% 0%, rgba(94,92,230,.25), rgba(0,0,0,0) 55%),
+                        radial-gradient(ellipse at 100% 100%, rgba(10,132,255,.20), rgba(0,0,0,0) 55%), #050507;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-user-select: none; user-select: none;
+        }
+        #container {
+            display: flex; flex-direction: column; width: 100vw; height: 100vh;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        #status {
+            height: 48px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.4); backdrop-filter: blur(10px);
+            flex-shrink: 0;
+        }
+        #clock { font-size: 20px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+        #bt-status { font-size: 13px; color: #30d158; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        #main { flex: 1; display: flex; gap: 16px; padding: 16px; overflow: hidden; }
+        #keys-panel {
+            flex: 3; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 12px;
+        }
+        .key {
+            background: linear-gradient(180deg, #2c2c32 0%, #1c1c20 100%);
+            border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 12px rgba(0,0,0,0.4);
+            cursor: pointer; border: 1px solid rgba(255,255,255,0.05); transition: transform 0.1s; padding: 8px;
+        }
+        .key:active { transform: scale(0.95); background: #1c1c20; }
+        .key svg { width: 32px; height: 32px; margin-bottom: 6px; fill: #0a84ff; flex-shrink: 0; }
+        .key.nav svg { fill: #30d158; }
+        .key.music svg { fill: #ff9f0a; }
+        .key.phone svg { fill: #ff453a; }
+        .key span { font-size: 12px; font-weight: 600; color: #f5f5f7; text-align: center; white-space: nowrap; }
+        #widgets-panel { flex: 2; display: flex; flex-direction: column; gap: 12px; }
+        .card {
+            background: rgba(255,255,255,0.06); border-radius: 16px; padding: 16px; flex: 1;
+            display: flex; flex-direction: column; justify-content: space-between; border: 1px solid rgba(255,255,255,0.08);
+        }
+        .card h3 { margin: 0 0 4px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #8e8e93; letter-spacing: 0.5px; }
+        .speed-val { font-size: 38px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; line-height: 1; }
+        .speed-val small { font-size: 14px; color: #8e8e93; }
+        @media (orientation: portrait) {
+            #main { flex-direction: column; }
+            #keys-panel { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(4, 1fr); flex: 2; }
+            #widgets-panel { flex: 1; flex-direction: row; }
+        }
+    </style>
+</head>
+    <div id="container">
+        <div id="status">
+            <div id="clock">12:00 PM</div>
+            <div id="bt-status">● Bluetooth Connected</div>
+        </div>
+        <div id="main">
+            <div id="keys-panel">
+                <div class="key nav" onclick="window.location='maps://'"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><span>Apple Maps</span></div>
+                <div class="key nav" onclick="window.location='comgooglemaps://'"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><span>Google Maps</span></div>
+                <div class="key music" onclick="window.location='spotify://'"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg><span>Spotify</span></div>
+                <div class="key music" onclick="window.location='music://'"><svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg><span>Apple Music</span></div>
+                <div class="key phone" onclick="window.location='telprompt:'"><svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg><span>Phone</span></div>
+                <div class="key" onclick="window.location='sms:'"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><span>Messages</span></div>
+                <div class="key" onclick="alert('Say Hey Siri')"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/></svg><span>Siri</span></div>
+                <div class="key" onclick="toggleFullscreen()"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM5 10h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg><span>Full Screen</span></div>
+            </div>
+            <div id="widgets-panel">
+                <div class="card">
+                    <h3>Now Playing</h3>
+                    <div style="font-size:15px; font-weight:600; color:#fff;">Bluetooth Audio</div>
+                    <div style="font-size:12px; color:#8e8e93;">Car Stereo Stream Active</div>
+                </div>
+                <div class="card">
+                    <h3>GPS Speed</h3>
+                    <div class="speed-val" id="speedVal">0 <small>mph</small></div>
+                    <div style="font-size:12px; color:#8e8e93;" id="gpsStatus">Acquiring GPS...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function updateClock() {
+            const now = new Date();
+            let h = now.getHours();
+            const m = now.getMinutes().toString().padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            document.getElementById('clock').innerText = `${h}:${m} ${ampm}`;
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (p) => {
+                    if (p.coords.speed !== null && p.coords.speed !== undefined) {
+                        const mph = Math.round(p.coords.speed * 2.23694);
+                        document.getElementById('speedVal').innerHTML = `${mph} <small>mph</small>`;
+                        document.getElementById('gpsStatus').innerText = 'GPS active';
+                    } else {
+                        document.getElementById('gpsStatus').innerText = 'Stationary';
+                    }
+                },
+                () => { document.getElementById('gpsStatus').innerText = 'GPS unavailable'; },
+                { enableHighAccuracy: true }
+            );
+        }
+    </script>
+</body>
+</html>
+<body>
