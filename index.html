@@ -73,6 +73,8 @@
                 <div class="key" onclick="alert('Say Hey Siri')"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/></svg><span>Siri</span></div>
                 <div class="key" onclick="toggleFullscreen()"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM5 10h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg><span>Full Screen</span></div>
             </div>
+        <div id="player"></div>
+
             <div id="widgets-panel">
                 <div class="card">
                     <h3>Now Playing</h3>
@@ -87,7 +89,51 @@
             </div>
         </div>
     </div>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
+        // Load YouTube player (hidden) and expose simple controls
+        let ytPlayer;
+        function onYouTubeIframeAPIReady(){
+            ytPlayer = new YT.Player('player', {
+                height: '0',
+                width:  '0',
+                videoId: 'dQw4w9WgXcQ', // default YouTube Music track – replace as needed
+                playerVars: {
+                    autoplay: 0,
+                    controls: 0,
+                    modestbranding: 1,
+                    rel: 0,
+                    origin: window.location.origin,
+                    theme: 'dark'
+                },
+                events: {
+                    onReady: onYTReady,
+                    onStateChange: onYTStateChange
+                }
+            });
+        }
+        function onYTReady(){
+            // hide the invisible player element
+            document.getElementById('player').style.display='none';
+            // initial fetch
+            fetchNowPlaying();
+        }
+        function onYTStateChange(event){
+            if(event.data===YT.PlayerState.PLAYING){
+                fetchNowPlaying();
+            }
+        }
+        function fetchNowPlaying(){
+            if(!ytPlayer) return;
+            const data = ytPlayer.getVideoData(); // {video_id, title, author}
+            document.getElementById('trackTitle').textContent = data.title || '';
+            document.getElementById('trackArtist').textContent = data.author || '';
+            document.getElementById('trackImage').src = `https://img.youtube.com/vi/${data.video_id}/hqdefault.jpg`;
+        }
+        function play(){ ytPlayer && ytPlayer.playVideo(); }
+        function pause(){ ytPlayer && ytPlayer.pauseVideo(); }
+
+        // Clock (unchanged)
         function updateClock() {
             const now = new Date();
             let h = now.getHours();
@@ -106,6 +152,7 @@
             }
         }
 
+        // GPS (unchanged)
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(
                 (p) => {
