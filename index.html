@@ -1,25 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-black text-white select-none">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CarPlay Clone</title>
-    <link rel="manifest" href="manifest.json">
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <title>CarPlay Web Standalone</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CarPlay Standalone">
+    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/512px-Apple_logo_black.svg.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        iosBg: '#0b0c10',
+                        iosCard: 'rgba(28, 28, 30, 0.75)',
+                        iosCardHover: 'rgba(44, 44, 46, 0.85)',
+                        iosBlue: '#0a84ff',
+                        iosGreen: '#30d158',
+                        iosRed: '#ff453a',
+                        iosOrange: '#ff9f0a',
+                        iosGray: '#8e8e93'
+                    },
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'Roboto', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-black text-white h-screen w-screen overflow-hidden">
-    <div id="app" class="h-full w-full flex">
-        <aside id="sidebar" class="w-20 h-full bg-gray-900 flex flex-col items-center py-4 space-y-6">
-            <!-- Sidebar content will go here -->
-        </aside>
-        <main id="content" class="flex-1 h-full bg-black">
-            <!-- Main content will go here -->
-        </main>
-    </div>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://www.youtube.com/iframe_api"></script>
+<body class="h-full w-full overflow-hidden bg-iosBg flex flex-row font-sans">
+    <aside class="w-20 md:w-24 h-full bg-zinc-950/90 border-r border-white/10 flex flex-col justify-between items-center py-4 z-50 shrink-0">
+        <div class="flex flex-col items-center gap-2">
+            <span id="dock-clock" class="text-xs font-bold tracking-tight text-zinc-300">12:00</span>
+            <div id="dock-battery" class="flex items-center text-[10px] text-zinc-400 gap-1" title="Battery Status">
+                <i id="battery-icon" class="fa-solid fa-battery-full text-iosGreen text-xs"></i>
+                <span id="battery-level">100%</span>
+            </div>
+        </div>
+        <nav class="flex flex-col items-center gap-3 my-auto">
+            <button onclick="switchPage('dashboard')" id="nav-btn-dashboard" class="nav-btn glass-button w-14 h-14 rounded-2xl flex items-center justify-center text-zinc-200 text-xl hover:text-white" title="Dashboard Split View">
+                <i class="fa-solid fa-table-cells-large"></i>
+            </button>
+            <button onclick="switchPage('maps')" id="nav-btn-maps" class="nav-btn glass-button w-14 h-14 rounded-2xl flex items-center justify-center text-iosBlue text-xl" title="Navigation Maps">
+                <i class="fa-solid fa-location-arrow"></i>
+            </button>
+            <button onclick="switchPage('music')" id="nav-btn-music" class="nav-btn glass-button w-14 h-14 rounded-2xl flex items-center justify-center text-iosRed text-xl" title="YouTube Music Player">
+                <i class="fa-solid fa-music"></i>
+            </button>
+            <button onclick="switchPage('speedometer')" id="nav-btn-speedometer" class="nav-btn glass-button w-14 h-14 rounded-2xl flex items-center justify-center text-iosOrange text-xl" title="Speedometer & Driving Gauges">
+                <i class="fa-solid fa-gauge-high"></i>
+            </button>
+        </nav>
+        <div class="flex flex-col items-center gap-3">
+            <button onclick="switchPage('settings')" id="nav-btn-settings" class="nav-btn glass-button w-12 h-12 rounded-xl flex items-center justify-center text-zinc-400 text-lg hover:text-white" title="Settings & Utilities">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+            <button onclick="switchPage('launcher')" id="nav-btn-launcher" class="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:scale-95 transition-all shadow-lg" title="CarPlay App Launcher">
+                <div class="grid grid-cols-2 gap-1 p-2">
+                    <span class="w-2.5 h-2.5 bg-white rounded-full"></span>
+                    <span class="w-2.5 h-2.5 bg-white rounded-full"></span>
+                    <span class="w-2.5 h-2.5 bg-white rounded-full"></span>
+                    <span class="w-2.5 h-2.5 bg-white rounded-full"></span>
+                </div>
+            </button>
+        </div>
+    </aside>
+    <main id="content" class="flex-1 h-full relative overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-black">
+        <!-- Content injected by app.js -->
+    </main>
     <script src="app.js" type="module"></script>
 </body>
 </html>
