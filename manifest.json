@@ -1,15 +1,24 @@
 {
-  "name": "CarPlay Clone",
+  "name": "CarPlay Web Standalone",
   "short_name": "CarPlay",
-  "start_url": ".",
-  "display": "fullscreen",
-  "background_color": "#000000",
+  "description": "Standalone Apple CarPlay web dashboard interface for phone mounts.",
+  "start_url": "./carplay_standalone.html",
+  "display": "standalone",
+  "background_color": "#0b0c10",
   "theme_color": "#000000",
+  "orientation": "landscape",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/192px-Apple_logo_black.svg.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/512px-Apple_logo_black.svg.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

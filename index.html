@@ -2,14 +2,19 @@
 <html lang="en" class="h-full bg-black text-white select-none">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>CarPlay Web Standalone</title>
     
+    <!-- iOS & PWA Web App Metadata -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="CarPlay Standalone">
+    <meta name="apple-mobile-web-app-title" content="CarPlay">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/512px-Apple_logo_black.svg.png">
+    
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="manifest.json">
 
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -33,15 +38,130 @@
         }
     </script>
 
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Leaflet CSS & JS (Free OpenStreetMap library) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
 
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Custom CarPlay Glassmorphism & UI Styling */
+        .glass-panel {
+            background: rgba(24, 24, 28, 0.75);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .glass-button {
+            background: rgba(45, 45, 50, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.15s ease-in-out;
+        }
+
+        .glass-button:active {
+            transform: scale(0.95);
+            background: rgba(70, 70, 78, 0.8);
+        }
+
+        /* Native Dark Tile Styling */
+        .leaflet-container {
+            background: #111115 !important;
+            font-family: inherit;
+        }
+
+        /* Custom Range Slider Input */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            height: 6px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        /* Custom Scrollbar Removal */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* CRITICAL FIX: Explicit hidden rule so overlays never block clicks if Tailwind CDN is delayed/blocked */
+        .hidden { 
+            display: none !important; 
+        }
+
+        /* Mobile Touch & Pointer Fixes */
+        button, .glass-button, .nav-btn, [onclick] {
+            cursor: pointer !important;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ====================================================
+           IPHONE LANDSCAPE FIX (SPEC-iphone-11-display-fix)
+           iPhone 11 landscape = 812x375 CSS pt; notch + home
+           indicator need safe-area insets; short height needs
+           a compact layout so nothing is clipped.
+           ==================================================== */
+
+        /* 1. Track the visible viewport, not the "large" one Safari reports */
+        html, body {
+            height: -webkit-fill-available !important;
+            height: 100dvh !important;
+        }
+
+        /* 2. Inset content from notch corners (landscape) and home indicator */
+        body {
+            padding-top: env(safe-area-inset-top);
+            padding-right: env(safe-area-inset-right);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+        }
+
+        /* 3. Compact mode for short viewports (phone landscape ~375pt tall) */
+        @media (max-height: 500px) {
+            aside {
+                width: 4rem !important;
+                padding-top: 0.5rem !important;
+                padding-bottom: 0.5rem !important;
+            }
+            .nav-btn {
+                width: 44px !important;
+                height: 44px !important;
+                font-size: 1.125rem !important;
+            }
+            #nav-btn-settings { width: 40px !important; height: 40px !important; }
+            #nav-btn-launcher { width: 44px !important; height: 44px !important; font-size: 1.25rem !important; }
+            aside nav, aside > div { gap: 0.5rem !important; }
+            #page-dashboard { padding: 0.75rem !important; gap: 0.75rem !important; }
+            #dash-speed-val { font-size: 3rem !important; }
+            #page-speedometer { padding: 0.75rem !important; }
+            #page-speedometer .rounded-full { width: 9rem !important; height: 9rem !important; }
+            #huge-speed-val { font-size: 3.5rem !important; }
+            #page-settings { padding: 1rem !important; }
+        }
+    </style>
 </head>
 <body class="h-full w-full overflow-hidden bg-iosBg flex flex-row font-sans">
+
+    <!-- ========================================== -->
+    <!-- SIDEBAR DOCK (FIXED NAVIGATION BAR)       -->
+    <!-- ========================================== -->
     <aside class="w-20 md:w-24 h-full bg-zinc-950/90 border-r border-white/10 flex flex-col justify-between items-center py-4 z-50 shrink-0">
+        
+        <!-- Status Info: Digital Clock & Battery Status -->
         <div class="flex flex-col items-center gap-2">
             <span id="dock-clock" class="text-xs font-bold tracking-tight text-zinc-300">12:00</span>
             <div id="dock-battery" class="flex items-center text-[10px] text-zinc-400 gap-1" title="Battery Status">
@@ -49,24 +169,38 @@
                 <span id="battery-level">100%</span>
             </div>
         </div>
+
+        <!-- Middle Quick Launch Bar -->
         <nav class="flex flex-col items-center gap-3 my-auto">
+            
+            <!-- Dashboard / Split Screen View -->
             <button onclick="switchPage('dashboard')" id="nav-btn-dashboard" class="nav-btn glass-button w-14 h-14 rounded-2xl flex items-center justify-center text-zinc-200 text-xl hover:text-white" title="Dashboard Split View">
                 <i class="fa-solid fa-table-cells-large"></i>
             </button>
+
+            <!-- Navigation Maps -->
             <button onclick="switchPage('maps')" id="nav-btn-maps" class="nav-btn glass-button w-14 h-14 rounded-2xl flex items-center justify-center text-iosBlue text-xl" title="Navigation Maps">
                 <i class="fa-solid fa-location-arrow"></i>
             </button>
+
+            <!-- YouTube Music -->
             <button onclick="switchPage('music')" id="nav-btn-music" class="nav-btn glass-button w-14 h-14 rounded-2xl flex items-center justify-center text-iosRed text-xl" title="YouTube Music Player">
                 <i class="fa-solid fa-music"></i>
             </button>
+
+            <!-- Speedometer Gauges -->
             <button onclick="switchPage('speedometer')" id="nav-btn-speedometer" class="nav-btn glass-button w-14 h-14 rounded-2xl flex items-center justify-center text-iosOrange text-xl" title="Speedometer & Driving Gauges">
                 <i class="fa-solid fa-gauge-high"></i>
             </button>
         </nav>
+
+        <!-- Bottom Controls & CarPlay Home Launcher -->
         <div class="flex flex-col items-center gap-3">
             <button onclick="switchPage('settings')" id="nav-btn-settings" class="nav-btn glass-button w-12 h-12 rounded-xl flex items-center justify-center text-zinc-400 text-lg hover:text-white" title="Settings & Utilities">
                 <i class="fa-solid fa-gear"></i>
             </button>
+
+            <!-- CarPlay iOS Home Icon Grid Button -->
             <button onclick="switchPage('launcher')" id="nav-btn-launcher" class="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:scale-95 transition-all shadow-lg" title="CarPlay App Launcher">
                 <div class="grid grid-cols-2 gap-1 p-2">
                     <span class="w-2.5 h-2.5 bg-white rounded-full"></span>
@@ -77,9 +211,1020 @@
             </button>
         </div>
     </aside>
-    <main id="content" class="flex-1 h-full relative overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-black">
-        <!-- Content injected by app.js -->
+
+    <!-- ========================================== -->
+    <!-- MAIN DISPLAY CANVAS AREA                   -->
+    <!-- ========================================== -->
+    <main class="flex-1 h-full relative overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-black">
+
+        <!-- Hidden Global YouTube IFrame Player -->
+        <div class="hidden">
+            <div id="youtube-player"></div>
+        </div>
+
+        <!-- Notification Toast Popup -->
+        <div id="toast-notify" class="hidden fixed top-4 right-4 z-50 glass-panel px-4 py-3 rounded-2xl flex items-center gap-3 shadow-2xl text-xs font-semibold text-white">
+            <i id="toast-icon" class="fa-solid fa-circle-info text-iosBlue text-sm"></i>
+            <span id="toast-msg">Notification Message</span>
+        </div>
+
+        <!-- ==================================================== -->
+        <!-- PAGE 1: CARPLAY DASHBOARD (SPLIT SCREEN VIEW)       -->
+        <!-- ==================================================== -->
+        <section id="page-dashboard" class="car-page w-full h-full p-4 grid grid-cols-12 gap-4">
+            
+            <!-- Left Panel: Interactive Leaflet Map (60% width = col-span-7) -->
+            <div class="col-span-7 h-full glass-panel rounded-3xl overflow-hidden relative flex flex-col shadow-2xl">
+                <div id="map-dashboard" class="w-full h-full z-0"></div>
+
+                <!-- Map Floating Live Speed & Status Pill -->
+                <div class="absolute top-4 left-4 z-10 glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 shadow-lg">
+                    <span class="w-3 h-3 rounded-full bg-iosGreen animate-pulse"></span>
+                    <span class="text-xs font-semibold text-zinc-300">CARTO MAPS</span>
+                    <div class="h-4 w-px bg-white/20"></div>
+                    <span class="text-sm font-bold text-white"><span id="dash-map-speed">0</span> <span class="unit-text text-xs text-zinc-400">KM/H</span></span>
+                </div>
+
+                <!-- Recenter Map Button -->
+                <button onclick="recenterMaps()" class="absolute bottom-4 right-4 z-10 glass-button w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg active:scale-90 transition" title="Recenter to Location">
+                    <i class="fa-solid fa-crosshairs text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Right Panel: Stacked Cards (40% width = col-span-5) -->
+            <div class="col-span-5 h-full flex flex-col gap-4">
+                
+                <!-- Right Top Card: GPS Speedometer & Telemetry Widget -->
+                <div class="h-1/2 glass-panel rounded-3xl p-5 flex flex-col justify-between relative overflow-hidden shadow-2xl">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2 text-iosOrange font-semibold text-xs tracking-wider uppercase">
+                            <i class="fa-solid fa-gauge-simple-high"></i> Speedometer
+                        </div>
+                        <span id="gps-status-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-iosGreen/20 text-iosGreen border border-iosGreen/30">
+                            GPS READY
+                        </span>
+                    </div>
+
+                    <!-- Speedometer Readout -->
+                    <div class="flex items-baseline justify-center my-auto">
+                        <span id="dash-speed-val" class="text-6xl md:text-7xl font-extrabold tracking-tighter text-white drop-shadow-md">0</span>
+                        <span class="unit-text text-lg font-bold text-zinc-400 ml-2 uppercase">KM/H</span>
+                    </div>
+
+                    <!-- Sub-stats Footer -->
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/10 text-xs">
+                        <div class="flex flex-col">
+                            <span class="text-zinc-400 text-[10px]">MAX SPEED</span>
+                            <span class="font-bold text-zinc-200"><span id="dash-max-speed">0</span> <span class="unit-text">KM/H</span></span>
+                        </div>
+                        <div class="flex flex-col text-right">
+                            <span class="text-zinc-400 text-[10px]">TOTAL DISTANCE</span>
+                            <span class="font-bold text-zinc-200"><span id="dash-distance">0.0</span> <span class="dist-unit-text">KM</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Bottom Card: YouTube Music Compact Widget -->
+                <div class="h-1/2 glass-panel rounded-3xl p-5 flex flex-col justify-between relative overflow-hidden shadow-2xl">
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-iosRed font-semibold text-xs tracking-wider uppercase">
+                            <i class="fa-brands fa-youtube text-sm"></i> YouTube Music
+                        </div>
+                        <button onclick="switchPage('music')" class="text-xs text-zinc-400 hover:text-white transition">
+                            Open App <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                        </button>
+                    </div>
+
+                    <!-- Track Info Row -->
+                    <div class="flex items-center gap-4 my-auto">
+                        <img id="widget-thumb" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=300&auto=format&fit=crop&q=80" alt="Album Art" class="w-16 h-16 rounded-2xl object-cover shadow-lg border border-white/10">
+                        <div class="flex flex-col overflow-hidden">
+                            <h4 id="widget-title" class="text-base font-bold text-white truncate">Lofi Driving Beats</h4>
+                            <p id="widget-artist" class="text-xs text-zinc-400 truncate">Lofi Girl</p>
+                        </div>
+                    </div>
+
+                    <!-- Mini Media Controls -->
+                    <div class="flex items-center justify-between pt-2 border-t border-white/10">
+                        <span id="widget-time" class="text-[10px] font-mono text-zinc-400">0:00 / 0:00</span>
+                        <div class="flex items-center gap-4">
+                            <button onclick="prevTrack()" class="text-zinc-300 hover:text-white text-lg active:scale-90 transition">
+                                <i class="fa-solid fa-backward-step"></i>
+                            </button>
+                            <button onclick="togglePlayPause()" id="widget-play-btn" class="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center text-base shadow-md active:scale-90 transition">
+                                <i class="fa-solid fa-play ml-0.5"></i>
+                            </button>
+                            <button onclick="nextTrack()" class="text-zinc-300 hover:text-white text-lg active:scale-90 transition">
+                                <i class="fa-solid fa-forward-step"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- PAGE 2: APP LAUNCHER GRID (IOS HOME SCREEN)          -->
+        <!-- ==================================================== -->
+        <section id="page-launcher" class="car-page hidden w-full h-full p-8 flex flex-col justify-between">
+            <div class="mb-4">
+                <h1 class="text-2xl font-bold text-white tracking-tight">CarPlay Applications</h1>
+                <p class="text-xs text-zinc-400">Tap an icon to switch application display</p>
+            </div>
+
+            <!-- App Icon Grid (Large touch friendly targets) -->
+            <div class="grid grid-cols-4 md:grid-cols-5 gap-6 md:gap-8 my-auto max-w-4xl mx-auto w-full">
+                
+                <!-- App 1: YouTube Music -->
+                <button onclick="switchPage('music')" class="flex flex-col items-center gap-2 group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr from-red-700 to-rose-500 shadow-xl flex items-center justify-center text-white text-4xl group-active:scale-90 transition border border-white/20">
+                        <i class="fa-brands fa-youtube"></i>
+                    </div>
+                    <span class="text-xs font-medium text-zinc-200">YT Music</span>
+                </button>
+
+                <!-- App 2: OpenStreetMap Navigation -->
+                <button onclick="switchPage('maps')" class="flex flex-col items-center gap-2 group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr from-sky-600 to-blue-500 shadow-xl flex items-center justify-center text-white text-4xl group-active:scale-90 transition border border-white/20">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                    </div>
+                    <span class="text-xs font-medium text-zinc-200">Maps</span>
+                </button>
+
+                <!-- App 3: Speedometer Gauge -->
+                <button onclick="switchPage('speedometer')" class="flex flex-col items-center gap-2 group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr from-amber-600 to-orange-500 shadow-xl flex items-center justify-center text-white text-4xl group-active:scale-90 transition border border-white/20">
+                        <i class="fa-solid fa-gauge-high"></i>
+                    </div>
+                    <span class="text-xs font-medium text-zinc-200">Speedometer</span>
+                </button>
+
+                <!-- App 4: Settings & Utilities -->
+                <button onclick="switchPage('settings')" class="flex flex-col items-center gap-2 group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr from-zinc-700 to-zinc-500 shadow-xl flex items-center justify-center text-white text-4xl group-active:scale-90 transition border border-white/20">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <span class="text-xs font-medium text-zinc-200">Settings</span>
+                </button>
+
+                <!-- App 5: Phone / Quick Dial -->
+                <button onclick="openQuickDial()" class="flex flex-col items-center gap-2 group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr from-emerald-600 to-green-500 shadow-xl flex items-center justify-center text-white text-4xl group-active:scale-90 transition border border-white/20">
+                        <i class="fa-solid fa-phone"></i>
+                    </div>
+                    <span class="text-xs font-medium text-zinc-200">Phone</span>
+                </button>
+
+                <!-- App 6: Split Dashboard View -->
+                <button onclick="switchPage('dashboard')" class="flex flex-col items-center gap-2 group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr from-purple-700 to-indigo-600 shadow-xl flex items-center justify-center text-white text-4xl group-active:scale-90 transition border border-white/20">
+                        <i class="fa-solid fa-table-cells-large"></i>
+                    </div>
+                    <span class="text-xs font-medium text-zinc-200">Dashboard</span>
+                </button>
+
+                <!-- App 7: Driving Simulator -->
+                <button onclick="toggleSimulatedDrive()" class="flex flex-col items-center gap-2 group">
+                    <div id="launcher-sim-icon" class="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr from-teal-700 to-emerald-600 shadow-xl flex items-center justify-center text-white text-4xl group-active:scale-90 transition border border-white/20">
+                        <i class="fa-solid fa-car-side"></i>
+                    </div>
+                    <span id="launcher-sim-label" class="text-xs font-medium text-zinc-200">Simulate Drive</span>
+                </button>
+
+                <!-- App 8: Keep Screen Awake -->
+                <button onclick="toggleWakeLock()" class="flex flex-col items-center gap-2 group">
+                    <div id="launcher-wake-icon" class="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-tr from-yellow-600 to-amber-500 shadow-xl flex items-center justify-center text-white text-4xl group-active:scale-90 transition border border-white/20">
+                        <i class="fa-solid fa-sun"></i>
+                    </div>
+                    <span class="text-xs font-medium text-zinc-200">Keep Screen On</span>
+                </button>
+
+            </div>
+
+            <!-- Page Indicator Dots -->
+            <div class="flex justify-center gap-2 py-2">
+                <span class="w-2 h-2 rounded-full bg-white"></span>
+                <span class="w-2 h-2 rounded-full bg-white/30"></span>
+            </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- PAGE 3: FULL YOUTUBE MUSIC PLAYER STANDALONE         -->
+        <!-- ==================================================== -->
+        <section id="page-music" class="car-page hidden w-full h-full p-6 flex flex-col md:flex-row gap-6 relative overflow-hidden">
+            
+            <!-- Dynamic Ambient Blurred Cover Backdrop -->
+            <div id="player-ambient-bg" class="absolute inset-0 bg-cover bg-center opacity-30 blur-3xl scale-125 pointer-events-none transition-all duration-700"></div>
+
+            <!-- Left Container: Main Audio Player & Metadata -->
+            <div class="flex-1 glass-panel rounded-3xl p-6 flex flex-col justify-between z-10 shadow-2xl">
+                
+                <!-- Top Header -->
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2 text-iosRed font-bold text-sm">
+                        <i class="fa-brands fa-youtube text-xl"></i> YOUTUBE MUSIC DRIVER
+                    </div>
+                    <span class="text-xs px-3 py-1 bg-white/10 rounded-full text-zinc-300">Standalone Audio</span>
+                </div>
+
+                <!-- Album Artwork & Titles -->
+                <div class="flex flex-col md:flex-row items-center gap-6 my-auto">
+                    <img id="main-player-thumb" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=600&auto=format&fit=crop&q=80" alt="Album Cover" class="w-44 h-44 md:w-56 md:h-56 rounded-3xl object-cover shadow-2xl border border-white/15">
+                    
+                    <div class="flex flex-col text-center md:text-left overflow-hidden">
+                        <h2 id="main-player-title" class="text-2xl md:text-3xl font-extrabold text-white truncate">Lofi Driving Beats</h2>
+                        <p id="main-player-artist" class="text-base text-zinc-400 mt-1 truncate">Lofi Girl</p>
+                        
+                        <!-- Volume Slider -->
+                        <div class="flex items-center gap-3 mt-6 bg-black/40 px-4 py-2.5 rounded-2xl w-full max-w-xs border border-white/10">
+                            <i class="fa-solid fa-volume-low text-zinc-400 text-xs"></i>
+                            <input type="range" id="player-volume" min="0" max="100" value="80" oninput="setVolume(this.value)" class="w-full cursor-pointer">
+                            <i class="fa-solid fa-volume-high text-zinc-400 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Bar & Touch Controls -->
+                <div class="space-y-3">
+                    <!-- Seekbar -->
+                    <div class="flex flex-col gap-1">
+                        <input type="range" id="player-seekbar" min="0" max="100" value="0" onchange="seekTo(this.value)" class="w-full cursor-pointer">
+                        <div class="flex justify-between text-[11px] font-mono text-zinc-400">
+                            <span id="player-current-time">0:00</span>
+                            <span id="player-duration">0:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Audio Controls -->
+                    <div class="flex items-center justify-center gap-8 pt-2">
+                        <button onclick="prevTrack()" class="w-14 h-14 rounded-full glass-button flex items-center justify-center text-white text-xl active:scale-90 transition">
+                            <i class="fa-solid fa-backward-step"></i>
+                        </button>
+                        
+                        <button onclick="togglePlayPause()" id="main-play-btn" class="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center text-3xl shadow-2xl active:scale-95 transition">
+                            <i class="fa-solid fa-play ml-1"></i>
+                        </button>
+                        
+                        <button onclick="nextTrack()" class="w-14 h-14 rounded-full glass-button flex items-center justify-center text-white text-xl active:scale-90 transition">
+                            <i class="fa-solid fa-forward-step"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Container: Station Presets & Custom URL Input -->
+            <div class="w-full md:w-80 glass-panel rounded-3xl p-5 flex flex-col justify-between z-10 shadow-2xl">
+                <div>
+                    <h3 class="text-sm font-bold text-white mb-3 tracking-wide">DRIVING RADIO STATIONS</h3>
+                    
+                    <!-- Preset Radio List -->
+                    <div class="space-y-2 max-h-56 md:max-h-64 overflow-y-auto no-scrollbar">
+                        
+                        <button onclick="loadYouTubeVideo('jfKfPfyJRdk', 'Lofi Chill Drive', 'Lofi Girl')" class="w-full glass-button p-3 rounded-2xl flex items-center gap-3 text-left hover:bg-white/10 transition">
+                            <div class="w-10 h-10 rounded-xl bg-purple-600/50 flex items-center justify-center text-white shrink-0"><i class="fa-solid fa-headphones"></i></div>
+                            <div class="overflow-hidden">
+                                <h5 class="text-xs font-bold text-white truncate">Lofi Chill Drive</h5>
+                                <p class="text-[10px] text-zinc-400">Relaxing Beats 24/7</p>
+                            </div>
+                        </button>
+
+                        <button onclick="loadYouTubeVideo('4xDzrJKXOOY', 'Synthwave Highway', 'Retrowave FM')" class="w-full glass-button p-3 rounded-2xl flex items-center gap-3 text-left hover:bg-white/10 transition">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-600/50 flex items-center justify-center text-white shrink-0"><i class="fa-solid fa-bolt"></i></div>
+                            <div class="overflow-hidden">
+                                <h5 class="text-xs font-bold text-white truncate">Synthwave Highway</h5>
+                                <p class="text-[10px] text-zinc-400">Night Drive Vibes</p>
+                            </div>
+                        </button>
+
+                        <button onclick="loadYouTubeVideo('5qap5aO4i9A', 'Chill Pop Hits', 'Radio Driver')" class="w-full glass-button p-3 rounded-2xl flex items-center gap-3 text-left hover:bg-white/10 transition">
+                            <div class="w-10 h-10 rounded-xl bg-pink-600/50 flex items-center justify-center text-white shrink-0"><i class="fa-solid fa-music"></i></div>
+                            <div class="overflow-hidden">
+                                <h5 class="text-xs font-bold text-white truncate">Top Pop Radio</h5>
+                                <p class="text-[10px] text-zinc-400">Popular Car Tracks</p>
+                            </div>
+                        </button>
+
+                        <button onclick="loadYouTubeVideo('fJ9rUzIMcZQ', 'Rock Drive Essentials', 'Classic Rock')" class="w-full glass-button p-3 rounded-2xl flex items-center gap-3 text-left hover:bg-white/10 transition">
+                            <div class="w-10 h-10 rounded-xl bg-amber-600/50 flex items-center justify-center text-white shrink-0"><i class="fa-solid fa-guitar"></i></div>
+                            <div class="overflow-hidden">
+                                <h5 class="text-xs font-bold text-white truncate">Rock Drive</h5>
+                                <p class="text-[10px] text-zinc-400">High Energy Road Trip</p>
+                            </div>
+                        </button>
+
+                    </div>
+                </div>
+
+                <!-- Custom YouTube URL/ID Input -->
+                <div class="pt-4 border-t border-white/10">
+                    <label class="text-[11px] font-semibold text-zinc-400 block mb-1.5">Load Custom YouTube URL/ID</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="custom-yt-input" placeholder="Video ID or YouTube Link" class="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-iosBlue">
+                        <button onclick="loadCustomYouTube()" class="bg-iosBlue text-white px-3 py-2 rounded-xl text-xs font-bold active:scale-95 transition shrink-0">
+                            Load
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- PAGE 4: FULLSCREEN NAVIGATION MAP                   -->
+        <!-- ==================================================== -->
+        <section id="page-maps" class="car-page hidden w-full h-full relative">
+            
+            <!-- Fullscreen Map Container -->
+            <div id="map-fullscreen" class="w-full h-full z-0"></div>
+
+            <!-- Top Navigation Guidance Banner -->
+            <div class="absolute top-4 left-4 right-4 z-10 glass-panel p-4 rounded-3xl flex items-center justify-between max-w-2xl mx-auto shadow-2xl">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-iosGreen text-black flex items-center justify-center text-2xl font-bold shadow-lg">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-bold text-white">Continue Straight</h4>
+                        <p class="text-xs text-zinc-300">CARTO Live GPS Route</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-xl font-black text-white">4.2 <span class="text-xs font-normal">KM</span></span>
+                    <p class="text-[10px] text-zinc-400">EST ARRIVAL: 8 MIN</p>
+                </div>
+            </div>
+
+            <!-- Bottom Floating Controls Overlay -->
+            <div class="absolute bottom-6 left-6 right-6 z-10 flex justify-between items-end pointer-events-none">
+                
+                <!-- Speedometer Badge -->
+                <div class="pointer-events-auto glass-panel px-5 py-3 rounded-3xl flex items-center gap-3 shadow-2xl">
+                    <span class="text-3xl font-extrabold text-white" id="full-map-speed">0</span>
+                    <span class="unit-text text-xs font-bold text-zinc-400">KM/H</span>
+                </div>
+
+                <!-- Recenter Controls -->
+                <div class="pointer-events-auto flex items-center gap-3">
+                    <button onclick="recenterMaps()" class="glass-button w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl shadow-2xl active:scale-90 transition">
+                        <i class="fa-solid fa-crosshairs"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- PAGE 5: SPEEDOMETER & GAUGES FULL VIEW               -->
+        <!-- ==================================================== -->
+        <section id="page-speedometer" class="car-page hidden w-full h-full p-8 flex flex-col justify-between items-center text-center relative overflow-hidden">
+            
+            <div class="flex justify-between items-center w-full max-w-3xl z-10">
+                <div class="flex items-center gap-2 text-iosOrange font-bold text-sm">
+                    <i class="fa-solid fa-gauge-high"></i> DIGITAL SPEEDOMETER HUD
+                </div>
+                <button onclick="toggleSimulatedDrive()" id="hud-sim-btn" class="glass-button px-4 py-2 rounded-2xl text-xs font-bold text-zinc-300">
+                    <i class="fa-solid fa-play text-iosGreen mr-1"></i> Start Speed Sim
+                </button>
+            </div>
+
+            <!-- Huge Radial Gauge Readout -->
+            <div class="my-auto z-10 flex flex-col items-center">
+                <div class="relative flex items-center justify-center">
+                    <div class="w-64 h-64 md:w-80 md:h-80 rounded-full border-4 border-iosOrange/30 flex items-center justify-center shadow-[0_0_50px_rgba(255,159,10,0.25)]">
+                        <div class="flex flex-col items-center">
+                            <span id="huge-speed-val" class="text-8xl md:text-9xl font-black tracking-tighter text-white drop-shadow-2xl">0</span>
+                            <span class="unit-text text-xl font-extrabold text-iosOrange tracking-widest mt-2 uppercase">KM/H</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Telemetry Stats Bar -->
+            <div class="grid grid-cols-3 gap-4 w-full max-w-3xl glass-panel p-4 rounded-3xl z-10 shadow-2xl">
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] text-zinc-400 font-bold uppercase">Top Speed</span>
+                    <span class="text-xl font-black text-white"><span id="hud-max-speed">0</span> <span class="unit-text text-xs">KM/H</span></span>
+                </div>
+                <div class="flex flex-col items-center border-x border-white/10">
+                    <span class="text-[10px] text-zinc-400 font-bold uppercase">Distance Traveled</span>
+                    <span class="text-xl font-black text-white"><span id="hud-distance">0.0</span> <span class="dist-unit-text text-xs">KM</span></span>
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] text-zinc-400 font-bold uppercase">Map Engine</span>
+                    <span class="text-xl font-black text-iosGreen text-xs mt-1">CARTO Dark</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- PAGE 6: SETTINGS & CARPLAY UTILITIES                 -->
+        <!-- ==================================================== -->
+        <section id="page-settings" class="car-page hidden w-full h-full p-8 overflow-y-auto no-scrollbar">
+            <div class="max-w-3xl mx-auto space-y-6">
+                
+                <div>
+                    <h1 class="text-2xl font-bold text-white">CarPlay System Settings</h1>
+                    <p class="text-xs text-zinc-400">Configure dashboard browser behavior & performance</p>
+                </div>
+
+                <!-- Settings Group 1: Screen & Wake Lock -->
+                <div class="glass-panel rounded-3xl p-6 space-y-4 shadow-xl">
+                    <h3 class="text-xs font-bold text-iosBlue tracking-wider uppercase">Display & Screen Control</h3>
+
+                    <!-- Wake Lock Toggle -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-sm font-bold text-white">Keep Screen Awake (Wake Lock API)</h4>
+                            <p class="text-xs text-zinc-400">Prevents phone display from dimming on car mount</p>
+                        </div>
+                        <button onclick="toggleWakeLock()" id="setting-wakelock-btn" class="px-5 py-2.5 rounded-2xl text-xs font-bold bg-zinc-800 text-zinc-400 border border-white/10 transition">
+                            OFF
+                        </button>
+                    </div>
+
+                    <div class="h-px bg-white/10"></div>
+
+                    <!-- Fullscreen Toggle -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-sm font-bold text-white">Fullscreen Mode</h4>
+                            <p class="text-xs text-zinc-400">Hides browser URL bar for native standalone feel</p>
+                        </div>
+                        <button onclick="toggleFullscreen()" class="glass-button px-5 py-2.5 rounded-2xl text-xs font-bold text-white">
+                            Toggle Fullscreen
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Settings Group 2: Speed Units & Demo Simulation -->
+                <div class="glass-panel rounded-3xl p-6 space-y-4 shadow-xl">
+                    <h3 class="text-xs font-bold text-iosOrange tracking-wider uppercase">Speedometer & Telemetry</h3>
+
+                    <!-- Unit Selector -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-sm font-bold text-white">Speed Unit</h4>
+                            <p class="text-xs text-zinc-400">Switch between Kilometers (KM/H) and Miles (MPH)</p>
+                        </div>
+                        <div class="flex bg-black/50 p-1 rounded-2xl border border-white/10">
+                            <button onclick="setSpeedUnit('kmh')" id="unit-btn-kmh" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-iosOrange text-black shadow">KM/H</button>
+                            <button onclick="setSpeedUnit('mph')" id="unit-btn-mph" class="px-4 py-1.5 rounded-xl text-xs font-bold text-zinc-400">MPH</button>
+                        </div>
+                    </div>
+
+                    <div class="h-px bg-white/10"></div>
+
+                    <!-- Demo Speed Simulator -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-sm font-bold text-white">Simulated Drive Demo</h4>
+                            <p class="text-xs text-zinc-400">Simulates real-time vehicle driving speed and map motion</p>
+                        </div>
+                        <button onclick="toggleSimulatedDrive()" id="setting-sim-btn" class="glass-button px-5 py-2.5 rounded-2xl text-xs font-bold text-zinc-300">
+                            Start Simulation
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Settings Group 3: Trip Telemetry Control -->
+                <div class="glass-panel rounded-3xl p-6 flex justify-between items-center shadow-xl">
+                    <div>
+                        <h4 class="text-sm font-bold text-white">Reset Trip Data</h4>
+                        <p class="text-xs text-zinc-400">Clear max speed and total distance recorded</p>
+                    </div>
+                    <button onclick="resetTripData()" class="bg-iosRed/20 text-iosRed border border-iosRed/30 px-5 py-2.5 rounded-2xl text-xs font-bold active:scale-95 transition">
+                        Reset Trip
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
     </main>
-    <script src="app.js" type="module"></script>
+
+    <!-- ========================================== -->
+    <!-- QUICK DIAL MODAL                           -->
+    <!-- ========================================== -->
+    <div id="quick-dial-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
+            <div class="w-16 h-16 rounded-full bg-iosGreen/20 text-iosGreen flex items-center justify-center text-3xl mx-auto">
+                <i class="fa-solid fa-phone"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white">CarPlay Quick Contacts</h3>
+            
+            <div class="space-y-2 text-left">
+                <a href="tel:911" class="glass-button p-3 rounded-2xl flex items-center justify-between text-white text-xs hover:bg-white/10">
+                    <span class="font-bold">Emergency Services</span>
+                    <span class="text-zinc-400">911</span>
+                </a>
+                <button onclick="showToast('Calling Home...')" class="w-full glass-button p-3 rounded-2xl flex items-center justify-between text-white text-xs hover:bg-white/10">
+                    <span class="font-bold">Home</span>
+                    <span class="text-zinc-400">Quick Call</span>
+                </button>
+            </div>
+
+            <button onclick="closeQuickDial()" class="w-full bg-white/10 text-white font-bold py-3 rounded-2xl text-xs active:scale-95 transition">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MAIN JAVASCRIPT LOGIC                      -->
+    <!-- ========================================== -->
+    <script>
+        /* ---------------------------------------------------- */
+        /* GLOBAL STATE VARIABLES                               */
+        /* ---------------------------------------------------- */
+        let currentLat = 37.7749;       // Default Latitude (San Francisco fallback)
+        let currentLng = -122.4194;     // Default Longitude
+        let currentSpeedKmh = 0;
+        let maxSpeedKmh = 0;
+        let totalDistanceKm = 0.0;
+        let speedUnit = 'kmh';          // 'kmh' or 'mph'
+        let currentPage = 'dashboard';
+
+        let mapDashboard = null;
+        let mapFullscreen = null;
+        let dashMarker = null;
+        let fullMarker = null;
+
+        let ytPlayer = null;
+        let isPlaying = false;
+
+        let wakeLock = null;
+        let isSimulating = false;
+        let simInterval = null;
+
+        /* ---------------------------------------------------- */
+        /* APPLICATION STARTUP & ROUTING ENGINE                 */
+        /* ---------------------------------------------------- */
+        window.addEventListener('DOMContentLoaded', () => {
+            updateClock();
+            initBatteryStatus();
+            try { initLeafletMaps(); } catch(e) { console.error('Map init error:', e); }
+            try { initGeolocation(); } catch(e) { console.error('Geo init error:', e); }
+            switchPage('dashboard');
+        });
+
+        function switchPage(pageId) {
+            currentPage = pageId;
+
+            // Hide all pages
+            document.querySelectorAll('.car-page').forEach(el => el.classList.add('hidden'));
+
+            // Show selected page
+            const targetPage = document.getElementById(`page-${pageId}`);
+            if (targetPage) {
+                targetPage.classList.remove('hidden');
+            }
+
+            // Update active state on sidebar dock buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('border-iosBlue', 'bg-white/25');
+            });
+            const activeNavBtn = document.getElementById(`nav-btn-${pageId}`);
+            if (activeNavBtn) {
+                activeNavBtn.classList.add('border-iosBlue', 'bg-white/25');
+            }
+
+            // Trigger Leaflet map resize fix when switching map views
+            setTimeout(() => {
+                if (pageId === 'dashboard' && mapDashboard) {
+                    mapDashboard.invalidateSize();
+                    mapDashboard.panTo([currentLat, currentLng]);
+                } else if (pageId === 'maps' && mapFullscreen) {
+                    mapFullscreen.invalidateSize();
+                    mapFullscreen.panTo([currentLat, currentLng]);
+                }
+            }, 100);
+        }
+
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            document.getElementById('dock-clock').innerText = `${hours}:${minutes}`;
+        }
+        setInterval(updateClock, 1000);
+
+        function initBatteryStatus() {
+            if ('getBattery' in navigator) {
+                navigator.getBattery().then(battery => {
+                    const updateBat = () => {
+                        const level = Math.round(battery.level * 100);
+                        document.getElementById('battery-level').innerText = level + '%';
+                        const icon = document.getElementById('battery-icon');
+                        if (battery.charging) {
+                            icon.className = 'fa-solid fa-bolt text-yellow-400 text-xs';
+                        } else if (level <= 20) {
+                            icon.className = 'fa-solid fa-battery-quarter text-iosRed text-xs';
+                        } else {
+                            icon.className = 'fa-solid fa-battery-full text-iosGreen text-xs';
+                        }
+                    };
+                    updateBat();
+                    battery.addEventListener('levelchange', updateBat);
+                    battery.addEventListener('chargingchange', updateBat);
+                }).catch(() => {});
+            }
+        }
+
+        /* ---------------------------------------------------- */
+        /* LEAFLET MAPS INTEGRATION (CARTO DARK TILES)          */
+        /* ---------------------------------------------------- */
+        function initLeafletMaps() {
+            const cartoUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+            const cartoAttrib = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+            // Custom Blue Vehicle Marker SVG Icon
+            const carIcon = L.divIcon({
+                className: 'custom-car-icon',
+                html: `<div style="background-color: #0a84ff; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #ffffff; box-shadow: 0 0 12px rgba(10,132,255,0.8);"></div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+            });
+
+            // 1. Dashboard Mini Map
+            mapDashboard = L.map('map-dashboard', {
+                center: [currentLat, currentLng],
+                zoom: 15,
+                zoomControl: false,
+                attributionControl: false
+            });
+
+            L.tileLayer(cartoUrl, { subdomains: 'abcd', maxZoom: 20, attribution: cartoAttrib }).addTo(mapDashboard);
+            dashMarker = L.marker([currentLat, currentLng], { icon: carIcon }).addTo(mapDashboard);
+
+            // 2. Fullscreen Navigation Map
+            mapFullscreen = L.map('map-fullscreen', {
+                center: [currentLat, currentLng],
+                zoom: 16,
+                zoomControl: false,
+                attributionControl: false
+            });
+
+            L.tileLayer(cartoUrl, { subdomains: 'abcd', maxZoom: 20, attribution: cartoAttrib }).addTo(mapFullscreen);
+            fullMarker = L.marker([currentLat, currentLng], { icon: carIcon }).addTo(mapFullscreen);
+        }
+
+        function recenterMaps() {
+            if (mapDashboard) mapDashboard.panTo([currentLat, currentLng]);
+            if (mapFullscreen) mapFullscreen.panTo([currentLat, currentLng]);
+            showToast('Map Centered');
+        }
+
+        /* ---------------------------------------------------- */
+        /* GPS GEOLOCATION & SPEEDOMETER ENGINE                 */
+        /* ---------------------------------------------------- */
+        function initGeolocation() {
+            if ('geolocation' in navigator) {
+                navigator.geolocation.watchPosition(
+                    (pos) => {
+                        if (isSimulating) return; // Skip if demo simulation is active
+                        
+                        currentLat = pos.coords.latitude;
+                        currentLng = pos.coords.longitude;
+                        
+                        let rawSpeedMps = pos.coords.speed || 0;
+                        currentSpeedKmh = Math.round(rawSpeedMps * 3.6);
+                        
+                        updateSpeedDisplay();
+                        updateMapPositions();
+                        
+                        const badge = document.getElementById('gps-status-badge');
+                        if (badge) {
+                            badge.innerText = 'GPS READY';
+                            badge.className = 'px-2.5 py-1 rounded-full text-[10px] font-bold bg-iosGreen/20 text-iosGreen border border-iosGreen/30';
+                        }
+                    },
+                    (err) => {
+                        console.warn('GPS location unavailable, standing by:', err.message);
+                        const badge = document.getElementById('gps-status-badge');
+                        if (badge) {
+                            badge.innerText = 'NO GPS';
+                            badge.className = 'px-2.5 py-1 rounded-full text-[10px] font-bold bg-iosRed/20 text-iosRed border border-iosRed/30';
+                        }
+                    },
+                    { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+                );
+            }
+        }
+
+        function updateSpeedDisplay() {
+            if (currentSpeedKmh > maxSpeedKmh) {
+                maxSpeedKmh = currentSpeedKmh;
+            }
+
+            const displaySpeed = speedUnit === 'kmh' ? currentSpeedKmh : Math.round(currentSpeedKmh * 0.621371);
+            const displayMax = speedUnit === 'kmh' ? maxSpeedKmh : Math.round(maxSpeedKmh * 0.621371);
+            const displayDist = speedUnit === 'kmh' ? totalDistanceKm : (totalDistanceKm * 0.621371);
+
+            document.getElementById('dash-speed-val').innerText = displaySpeed;
+            document.getElementById('dash-map-speed').innerText = displaySpeed;
+            document.getElementById('full-map-speed').innerText = displaySpeed;
+            document.getElementById('huge-speed-val').innerText = displaySpeed;
+            
+            document.getElementById('dash-max-speed').innerText = displayMax;
+            document.getElementById('hud-max-speed').innerText = displayMax;
+
+            document.getElementById('dash-distance').innerText = displayDist.toFixed(1);
+            document.getElementById('hud-distance').innerText = displayDist.toFixed(1);
+        }
+
+        function updateMapPositions() {
+            const latLng = [currentLat, currentLng];
+            if (dashMarker) dashMarker.setLatLng(latLng);
+            if (fullMarker) fullMarker.setLatLng(latLng);
+
+            if (mapDashboard && currentPage === 'dashboard') mapDashboard.panTo(latLng);
+            if (mapFullscreen && currentPage === 'maps') mapFullscreen.panTo(latLng);
+        }
+
+        /* Demo Speed Simulation for Indoor Testing */
+        function toggleSimulatedDrive() {
+            isSimulating = !isSimulating;
+            const btnHud = document.getElementById('hud-sim-btn');
+            const btnSet = document.getElementById('setting-sim-btn');
+            const iconLauncher = document.getElementById('launcher-sim-icon');
+
+            if (isSimulating) {
+                if (btnHud) btnHud.innerHTML = '<i class="fa-solid fa-stop text-iosRed mr-1"></i> Stop Speed Sim';
+                if (btnSet) btnSet.innerText = 'Stop Simulation';
+                if (iconLauncher) iconLauncher.classList.add('ring-4', 'ring-iosGreen');
+
+                showToast('Drive Simulator Started');
+
+                simInterval = setInterval(() => {
+                    currentSpeedKmh = Math.floor(45 + Math.sin(Date.now() / 2000) * 35 + Math.random() * 5);
+                    totalDistanceKm += (currentSpeedKmh / 3600);
+
+                    currentLat += 0.00012;
+                    currentLng += 0.00008;
+
+                    updateSpeedDisplay();
+                    updateMapPositions();
+                }, 1000);
+            } else {
+                clearInterval(simInterval);
+                currentSpeedKmh = 0;
+                updateSpeedDisplay();
+                if (btnHud) btnHud.innerHTML = '<i class="fa-solid fa-play text-iosGreen mr-1"></i> Start Speed Sim';
+                if (btnSet) btnSet.innerText = 'Start Simulation';
+                if (iconLauncher) iconLauncher.classList.remove('ring-4', 'ring-iosGreen');
+                showToast('Drive Simulator Stopped');
+            }
+        }
+
+        function setSpeedUnit(unit) {
+            speedUnit = unit;
+            const btnKmh = document.getElementById('unit-btn-kmh');
+            const btnMph = document.getElementById('unit-btn-mph');
+
+            if (unit === 'kmh') {
+                btnKmh.className = 'px-4 py-1.5 rounded-xl text-xs font-bold bg-iosOrange text-black shadow';
+                btnMph.className = 'px-4 py-1.5 rounded-xl text-xs font-bold text-zinc-400';
+                document.querySelectorAll('.unit-text').forEach(el => el.innerText = 'KM/H');
+                document.querySelectorAll('.dist-unit-text').forEach(el => el.innerText = 'KM');
+            } else {
+                btnMph.className = 'px-4 py-1.5 rounded-xl text-xs font-bold bg-iosOrange text-black shadow';
+                btnKmh.className = 'px-4 py-1.5 rounded-xl text-xs font-bold text-zinc-400';
+                document.querySelectorAll('.unit-text').forEach(el => el.innerText = 'MPH');
+                document.querySelectorAll('.dist-unit-text').forEach(el => el.innerText = 'MI');
+            }
+            updateSpeedDisplay();
+        }
+
+        function resetTripData() {
+            maxSpeedKmh = 0;
+            totalDistanceKm = 0;
+            updateSpeedDisplay();
+            showToast('Trip Telemetry Reset');
+        }
+
+        /* ---------------------------------------------------- */
+        /* YOUTUBE IFRAME PLAYER API INTEGRATION                */
+        /* ---------------------------------------------------- */
+        window.onYouTubeIframeAPIReady = function() {
+            try {
+                ytPlayer = new YT.Player('youtube-player', {
+                    height: '0',
+                    width: '0',
+                    videoId: 'jfKfPfyJRdk',
+                    playerVars: {
+                        'playsinline': 1,
+                        'controls': 0,
+                        'disablekb': 1
+                    },
+                    events: {
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
+            } catch (e) {
+                console.warn('YouTube Player initialization standing by:', e);
+            }
+        };
+
+        function onPlayerReady(event) {
+            ytPlayer.setVolume(80);
+            startProgressLoop();
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                updatePlayPauseIcons(true);
+                updateTrackMetadata();
+            } else {
+                isPlaying = false;
+                updatePlayPauseIcons(false);
+            }
+        }
+
+        function togglePlayPause() {
+            if (!ytPlayer) return;
+            if (isPlaying) {
+                ytPlayer.pauseVideo();
+            } else {
+                ytPlayer.playVideo();
+            }
+        }
+
+        function updatePlayPauseIcons(playing) {
+            const widgetBtn = document.getElementById('widget-play-btn');
+            const mainBtn = document.getElementById('main-play-btn');
+
+            if (playing) {
+                if (widgetBtn) widgetBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                if (mainBtn) mainBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            } else {
+                if (widgetBtn) widgetBtn.innerHTML = '<i class="fa-solid fa-play ml-0.5"></i>';
+                if (mainBtn) mainBtn.innerHTML = '<i class="fa-solid fa-play ml-1"></i>';
+            }
+        }
+
+        function loadYouTubeVideo(videoId, title, artist) {
+            if (!ytPlayer) return;
+            ytPlayer.loadVideoById(videoId);
+            isPlaying = true;
+            
+            document.getElementById('widget-title').innerText = title;
+            document.getElementById('main-player-title').innerText = title;
+            
+            document.getElementById('widget-artist').innerText = artist;
+            document.getElementById('main-player-artist').innerText = artist;
+
+            const thumbUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+            document.getElementById('widget-thumb').src = thumbUrl;
+            document.getElementById('main-player-thumb').src = thumbUrl;
+            document.getElementById('player-ambient-bg').style.backgroundImage = `url(${thumbUrl})`;
+        }
+
+        function loadCustomYouTube() {
+            const input = document.getElementById('custom-yt-input').value.trim();
+            if (!input) return;
+
+            let videoId = input;
+            if (input.includes('v=')) {
+                videoId = input.split('v=')[1].split('&')[0];
+            } else if (input.includes('youtu.be/')) {
+                videoId = input.split('youtu.be/')[1].split('?')[0];
+            }
+
+            loadYouTubeVideo(videoId, 'Custom YouTube Audio', 'User Stream');
+            document.getElementById('custom-yt-input').value = '';
+            showToast('Loading Video ID: ' + videoId);
+        }
+
+        function nextTrack() {
+            if (ytPlayer && ytPlayer.nextVideo) ytPlayer.nextVideo();
+        }
+
+        function prevTrack() {
+            if (ytPlayer && ytPlayer.previousVideo) ytPlayer.previousVideo();
+        }
+
+        function setVolume(val) {
+            if (ytPlayer && ytPlayer.setVolume) {
+                ytPlayer.setVolume(val);
+            }
+        }
+
+        function seekTo(val) {
+            if (ytPlayer && ytPlayer.getDuration) {
+                const duration = ytPlayer.getDuration();
+                const targetTime = (val / 100) * duration;
+                ytPlayer.seekTo(targetTime, true);
+            }
+        }
+
+        function startProgressLoop() {
+            setInterval(() => {
+                if (ytPlayer && isPlaying && ytPlayer.getCurrentTime) {
+                    const current = ytPlayer.getCurrentTime() || 0;
+                    const duration = ytPlayer.getDuration() || 0;
+                    
+                    if (duration > 0) {
+                        const progress = (current / duration) * 100;
+                        document.getElementById('player-seekbar').value = progress;
+                        
+                        const curFormatted = formatTime(current);
+                        const durFormatted = formatTime(duration);
+                        
+                        document.getElementById('widget-time').innerText = `${curFormatted} / ${durFormatted}`;
+                        document.getElementById('player-current-time').innerText = curFormatted;
+                        document.getElementById('player-duration').innerText = durFormatted;
+                    }
+                }
+            }, 1000);
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function updateTrackMetadata() {
+            if (ytPlayer && ytPlayer.getVideoData) {
+                const data = ytPlayer.getVideoData();
+                if (data && data.title) {
+                    document.getElementById('widget-title').innerText = data.title;
+                    document.getElementById('main-player-title').innerText = data.title;
+                    document.getElementById('widget-artist').innerText = data.author || 'YouTube Channel';
+                    document.getElementById('main-player-artist').innerText = data.author || 'YouTube Channel';
+                }
+            }
+        }
+
+        /* ---------------------------------------------------- */
+        /* SCREEN WAKE LOCK & FULLSCREEN UTILITIES              */
+        /* ---------------------------------------------------- */
+        async function toggleWakeLock() {
+            const btn = document.getElementById('setting-wakelock-btn');
+            const iconLauncher = document.getElementById('launcher-wake-icon');
+
+            if ('wakeLock' in navigator) {
+                try {
+                    if (!wakeLock) {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        if (btn) {
+                            btn.innerText = 'ON (ACTIVE)';
+                            btn.className = 'px-5 py-2.5 rounded-2xl text-xs font-bold bg-iosGreen text-black shadow';
+                        }
+                        if (iconLauncher) iconLauncher.classList.add('ring-4', 'ring-yellow-400');
+                        showToast('Screen Wake Lock Active');
+                    } else {
+                        await wakeLock.release();
+                        wakeLock = null;
+                        if (btn) {
+                            btn.innerText = 'OFF';
+                            btn.className = 'px-5 py-2.5 rounded-2xl text-xs font-bold bg-zinc-800 text-zinc-400 border border-white/10';
+                        }
+                        if (iconLauncher) iconLauncher.classList.remove('ring-4', 'ring-yellow-400');
+                        showToast('Wake Lock Released');
+                    }
+                } catch (err) {
+                    console.error('Wake Lock error:', err.message);
+                }
+            } else {
+                showToast('Wake Lock API not supported on this browser');
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.warn(`Error enabling fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        /* ---------------------------------------------------- */
+        /* UTILITIES & NOTIFICATION TOAST                       */
+        /* ---------------------------------------------------- */
+        function showToast(msg) {
+            const toast = document.getElementById('toast-notify');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        function openQuickDial() {
+            document.getElementById('quick-dial-modal').classList.remove('hidden');
+        }
+        function closeQuickDial() {
+            document.getElementById('quick-dial-modal').classList.add('hidden');
+        }
+    </script>
 </body>
 </html>
